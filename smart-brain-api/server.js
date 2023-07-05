@@ -2,6 +2,83 @@ import express from "express"
 // import bodyParser from "body-parser"
 import bcrypt from "bcrypt-nodejs"
 import cors from "cors"
+import knex from "knex"
+import { TYPES } from "tedious"
+
+// const config = {
+//   user: "test3",
+//   password: "test3",
+//   server: "localhost",
+//   database: "127.0.0.1",
+//   pool: {
+//     max: 10,
+//     min: 0,
+//     idleTimeoutMillis: 30000,
+//   },
+// }
+
+// const mssql = knex({
+//   client: "mssql",
+//   connection: {
+//     options: {
+//       mapBinding: (value) => {
+//         // bind all strings to varchar instead of nvarchar
+//         if (typeof value === "string") {
+//           return {
+//             type: TYPES.VarChar,
+//             value,
+//           }
+//         }
+
+//         // allow devs to pass tedious type at query time
+//         if (value != null && value.type) {
+//           return {
+//             type: value.type,
+//             value: value.value,
+//           }
+//         }
+
+//         // undefined is returned; falling back to default mapping function
+//       },
+//     },
+//   },
+// })
+
+// mssql
+//   .select("*")
+//   .from("users")
+//   .then((data) => console.log(data))
+
+const db = knex({
+  client: "pg",
+  version: "7.2",
+  connection: {
+    host: "127.0.0.1",
+    port: 5432,
+    user: "postgres",
+    password: "test",
+    database: "test",
+  },
+})
+
+// db.select("*")
+//   .from("users")
+//   .then((data) => console.log(data))
+
+console.log("New ********************************************")
+// console.log(
+// db.select("*")
+//   .from("dbo.users")
+//   .then((data) => {
+//     console.log(data)
+//   })
+//   .catch((err) => console.log(err))
+// // )
+// console.log("after ******************************")
+// db.select("*")
+//   .from("dbo.users")
+//   .then((data) => console.log(data))
+// .then((data) => console.log(data))
 
 const app = express()
 
@@ -70,45 +147,84 @@ app.post("/signin", (req, res) => {
 app.post("/register", (req, res) => {
   const { email, name, password } = req.body
 
-  database.users.push({
-    id: "125",
-    name: name,
-    email: email,
-    // password: password,
-    entries: 0,
-    joined: new Date(),
-  })
+  const hash = bcrypt.hashSync(password)
 
-  res.json(database.users[database.users.length - 1])
+  db.transaction((trx) => {
+    trx
+      .insert({
+        hash: hash,
+        email: email,
+      })
+      .into("login")
+      .returning("email")
+      .then((loginemail) => {
+        return trx("users")
+          .returning("*")
+          .insert({
+            email: loginemail[0].email,
+            name: name,
+            password: hash,
+            joined: new Date(),
+          })
+          .then((user) => {
+            res.json(user[0])
+          })
+          .then(trx.commit)
+          .catch(trx.rollback)
+      })
+  }).catch((err) => res.status(400).json("unable to register"))
+
+  // res.json(database.users[database.users.length - 1])
 })
 
 app.get("/profile/:id", (req, res) => {
   const { id } = req.params
-  let found = false
-  database.users.forEach((user) => {
-    if (user.id === id) {
-      found = true
-      return res.json(user)
-    }
-  })
-  if (!found) {
-    res.status(404).json("no such user")
-  }
+  // let found = false
+  db.select("*")
+    .from("users")
+    .where({ id: id })
+    .then((user) => {
+      if (user.length) {
+        res.json(user[0])
+      } else {
+        res.status(400).json("Not found")
+      }
+    })
+    .catch((err) => res.status(400).json("error getting user"))
+
+  // res.json(user[10])
+
+  // database.users.forEach((user) => {
+  //   if (user.id === id) {
+  //     found = true
+  //     return res.json(user)
+  //   }
+  // })
+  // if (!found) {
+  //   res.status(404).json("no such user")
+  // }
 })
 
 app.put("/image", (req, res) => {
   const { id } = req.body
-  let found = false
-  database.users.forEach((user) => {
-    if (user.id === id) {
-      found = true
-      user.entries++
-      return res.json(user.entries)
-    }
-  })
-  if (!found) {
-    res.status(404).json("no such user")
-  }
+
+  db("users")
+    .where("id", "=", id)
+    .increment("entries", 1)
+    .returning("entries")
+    .then((entries) => res.json(entries[0].entries))
+    .catch((err) => res.status(400).json("unable to get entries"))
+  // let found = false
+  // database.users.forEach((user) => {
+  //   if (user.id === id) {
+  //     found = true
+  //     user.entries++
+  //     return res.json(user.entries)
+  //   }
+  // })
+  // if (!found) {
+  //   res.status(404).json("no such user")
+  // }
 })
 
 // bcrypt.hash("bacon", null, null, function(err, hash) {
