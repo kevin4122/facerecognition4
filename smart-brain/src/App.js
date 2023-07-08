@@ -44,7 +44,7 @@ class App extends Component {
   calculateFaceLocation = (data) => {
     const clarifaiFace =
       data.outputs[0].data.regions[0].region_info.bounding_box
-    console.log(clarifaiFace)
+    // console.log(clarifaiFace)
     const image = document.getElementById("inputimage")
     const width = Number(image.width)
     const height = Number(image.height)
@@ -66,14 +66,14 @@ class App extends Component {
     this.setState({ input: event.target.value })
   }
 
-  onRouteChange = (route) => {
-    if (route === "signout") {
-      this.setState({ isSignedIn: false })
-    } else if (route === "home") {
-      this.setState({ isSignedIn: true })
-    }
-    this.setState({ route: route })
-  }
+  // onRouteChange = (route) => {
+  //   if (route === "signout") {
+  //     this.setState({ isSignedIn: false })
+  //   } else if (route === "home") {
+  //     this.setState({ isSignedIn: true })
+  //   }
+  //   this.setState({ route: route })
+  // }
 
   onButtonSubmit = () => {
     this.setState({ imageUrl: this.state.input })
@@ -116,14 +116,40 @@ class App extends Component {
       requestOptions
     )
       .then((response) => response.json())
-      // .then((result) => console.log(result))
       .then((result) => {
         // console.log(result.outputs[0].data.regions[0].region_info.bounding_box)
-
+        // this.setState((prevState) => ({
+        //   user: {
+        //     ...prevState.user,
+        //     entries: prevState.user.entries + 1,
+        //   },
+        // }))
         const boxDimention = this.calculateFaceLocation(result)
         this.displayFaceBox(boxDimention)
+        if (result) {
+          fetch("http://localhost:3000/image", {
+            method: "put",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: this.state.user.id,
+            }),
+          })
+            .then((response) => response.json())
+            .then((count) => {
+              this.setState(Object.assign(this.state.user, { entries: count }))
+            })
+        }
       })
       .catch((error) => console.log("error", error))
+  }
+
+  onRouteChange = (route) => {
+    if (route === "signout") {
+      this.setState({ isSignedIn: false })
+    } else if (route === "home") {
+      this.setState({ isSignedIn: true })
+    }
+    this.setState({ route: route })
   }
 
   render() {
