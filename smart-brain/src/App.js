@@ -10,23 +10,25 @@ import FaceRecognition from "./components/FaceRecognition/FaceRecognition"
 import Signin from "./components/Signin/Signin"
 import Register from "./components/Register/Register"
 
+const initialState = {
+  input: "",
+  imageUrl: "",
+  box: {},
+  route: "signin",
+  isSignedIn: false,
+  user: {
+    id: "",
+    name: "",
+    email: "",
+    entries: 0,
+    joined: "",
+  },
+}
+
 class App extends Component {
   constructor() {
     super()
-    this.state = {
-      input: "",
-      imageUrl: "",
-      box: {},
-      route: "signin",
-      isSignedIn: false,
-      user: {
-        id: "",
-        name: "",
-        email: "",
-        entries: 0,
-        joined: "",
-      },
-    }
+    this.state = initialState
   }
 
   loadUser = (data) => {
@@ -78,8 +80,6 @@ class App extends Component {
   onButtonSubmit = () => {
     this.setState({ imageUrl: this.state.input })
 
-    // URL of image to use. Change this to your image.
-    // const IMAGE_URL = "https://samples.clarifai.com/metro-north.jpg"
     const IMAGE_URL = this.state.input
 
     const raw = JSON.stringify({
@@ -102,7 +102,8 @@ class App extends Component {
       method: "POST",
       headers: {
         Accept: "application/json",
-        Authorization: "Key " + "e5f94e62f50c4753b80eacd193649bdf",
+        // Authorization: "Key " + "e5f94e62f50c4753b80eacd193649bdf",
+        Authorization: `Key e5f94e62f50c4753b80eacd193649bdf`,
       },
       body: raw,
     }
@@ -138,6 +139,7 @@ class App extends Component {
             .then((count) => {
               this.setState(Object.assign(this.state.user, { entries: count }))
             })
+            .catch(console.log)
         }
       })
       .catch((error) => console.log("error", error))
@@ -145,7 +147,7 @@ class App extends Component {
 
   onRouteChange = (route) => {
     if (route === "signout") {
-      this.setState({ isSignedIn: false })
+      this.setState(initialState)
     } else if (route === "home") {
       this.setState({ isSignedIn: true })
     }
